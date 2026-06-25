@@ -1,0 +1,18 @@
+apiVersion: ecosystem.awc.cloudera.com/v1alpha9
+kind: ImageCatalog
+metadata:
+  name: starrocks-ace-default
+spec:
+  images:
+    - id: starrocksOperator
+      registry: docker.io
+      repository: starrocks/operator
+      tag: v1.11.4
+    - id: fe
+      registry: docker.io
+      repository: starrocks/fe-ubuntu
+      tag: "3.4.3"
+    - id: be
+      registry: docker.io
+      repository: starrocks/be-ubuntu
+      tag: "3.4.3"

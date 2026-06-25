@@ -1,0 +1,34 @@
+---
+apiVersion: ecosystem.awc.cloudera.com/v1alpha9
+kind: Capability
+metadata:
+  name: starrocks-cluster
+spec:
+  schema:
+    type: object
+    required:
+      - queryEndpoint
+      - httpEndpoint
+    properties:
+      queryEndpoint:
+        type: object
+        description: "MySQL-compatible query endpoint (port 9030)"
+        required:
+          - host
+          - port
+        properties:
+          host:
+            type: string
+          port:
+            type: integer
+      httpEndpoint:
+        type: object
+        description: "HTTP API endpoint (port 8030)"
+        required:
+          - host
+          - port
+        properties:
+          host:
+            type: string
+          port:
+            type: integer

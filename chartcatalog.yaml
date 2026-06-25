@@ -1,0 +1,10 @@
+apiVersion: ecosystem.awc.cloudera.com/v1alpha9
+kind: ChartCatalog
+metadata:
+  name: starrocks-ace-charts
+spec:
+  charts:
+    - id: kubeStarrocks
+      registry: docker-sandbox.infra.cloudera.com
+      repository: awc-partners/kube-starrocks
+      version: "1.11.4"

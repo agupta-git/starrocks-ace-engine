@@ -1,0 +1,191 @@
+apiVersion: ecosystem.awc.cloudera.com/v1alpha9
+kind: Engine
+metadata:
+  name: starrocks-ace-engine
+spec:
+  displayName: "StarRocks ACE Engine"
+  description: "Deploys a minimal StarRocks cluster (1 FE + 1 BE) via the kube-starrocks Helm chart"
+  versionCatalog:
+  - displayName: "1.11.4"
+    imageCatalog: starrocks-ace-default
+    chartCatalog: starrocks-ace-charts
+  provides:
+  - name: starrocksLandingPage
+    capability: landing-page
+    value: |
+      url: "https://{{ .Metadata.Name }}.{{ .Cluster.DomainName }}"
+  - name: starrocksCluster
+    capability: starrocks-cluster
+    value: |
+      queryEndpoint:
+        host: "{{ .Metadata.Name }}-fe-service.{{ .Metadata.Namespace }}.svc.cluster.local"
+        port: 9030
+      httpEndpoint:
+        host: "{{ .Metadata.Name }}-fe-service.{{ .Metadata.Namespace }}.svc.cluster.local"
+        port: 8030
+  template: |
+    apiVersion: source.toolkit.fluxcd.io/v1
+    kind: HelmRepository
+    metadata:
+      name: {{ .Metadata.Name }}-repo
+    spec:
+      interval: 5m
+      type: oci
+      url: oci://{{ .Chart.kubeStarrocks.registry }}/{{ dir .Chart.kubeStarrocks.repository }}
+    ---
+    apiVersion: helm.toolkit.fluxcd.io/v2
+    kind: HelmRelease
+    metadata:
+      name: {{ .Metadata.Name }}
+    spec:
+      interval: 5m
+      targetNamespace: {{ .Metadata.Namespace }}
+      install:
+        createNamespace: true
+      chart:
+        spec:
+          chart: {{ base .Chart.kubeStarrocks.repository }}
+          version: "{{ .Chart.kubeStarrocks.version }}"
+          sourceRef:
+            kind: HelmRepository
+            name: {{ .Metadata.Name }}-repo
+            namespace: {{ .Metadata.Namespace }}
+          interval: 1m
+      values:
+        operator:
+          nameOverride: "{{ .Metadata.Name }}"
+          starrocksOperator:
+            enabled: true
+            image:
+              repository: "{{ .Image.starrocksOperator.registry }}/{{ .Image.starrocksOperator.repository }}"
+              tag: "{{ .Image.starrocksOperator.tag }}"
+        starrocks:
+          nameOverride: "{{ .Metadata.Name }}"
+          starrocksCluster:
+            name: "{{ .Metadata.Name }}"
+          starrocksFESpec:
+            replicas: {{ .Config.feReplicas }}
+            image:
+              repository: "{{ .Image.fe.registry }}/{{ .Image.fe.repository }}"
+              tag: "{{ .Image.fe.tag }}"
+            resources:
+              requests:
+                cpu: "{{ .Config.feCpu }}"
+                memory: "{{ .Config.feMemory }}"
+              limits:
+                cpu: "{{ .Config.feCpu }}"
+                memory: "{{ .Config.feMemory }}"
+            storageSpec:
+              name: fe
+              storageSize: "{{ .Config.feMetaStorageSize }}"
+              logStorageSize: "{{ .Config.feLogStorageSize }}"
+          starrocksBeSpec:
+            replicas: {{ .Config.beReplicas }}
+            image:
+              repository: "{{ .Image.be.registry }}/{{ .Image.be.repository }}"
+              tag: "{{ .Image.be.tag }}"
+            resources:
+              requests:
+                cpu: "{{ .Config.beCpu }}"
+                memory: "{{ .Config.beMemory }}"
+              limits:
+                cpu: "{{ .Config.beCpu }}"
+                memory: "{{ .Config.beMemory }}"
+            storageSpec:
+              name: be
+              storageSize: "{{ .Config.beStorageSize }}"
+              logStorageSize: "{{ .Config.beLogStorageSize }}"
+    ---
+    apiVersion: security.awc.cloudera.com/v1alpha1
+    kind: AuthConfig
+    metadata:
+      name: default
+    spec:
+      meshMode: Ambient
+      enableAWCAuth: false
+    ---
+    apiVersion: gateway.networking.k8s.io/v1
+    kind: HTTPRoute
+    metadata:
+      name: {{ .Metadata.Name }}-fe-http
+    spec:
+      parentRefs:
+        - group: gateway.networking.k8s.io
+          kind: Gateway
+          name: default-awc
+          namespace: istio-ingress
+      hostnames:
+        - "{{ .Metadata.Name }}.{{ .Cluster.DomainName }}"
+      rules:
+        - matches:
+            - path:
+                type: PathPrefix
+                value: /
+          backendRefs:
+            - group: ""
+              kind: Service
+              name: {{ .Metadata.Name }}-fe-service
+              port: 8030
+  configSchema:
+    type: object
+    properties:
+      feReplicas:
+        type: integer
+        minimum: 1
+        default: 1
+        description: "Number of FE (Frontend) replicas"
+        title: FE Replicas
+      beReplicas:
+        type: integer
+        minimum: 1
+        default: 1
+        description: "Number of BE (Backend) replicas"
+        title: BE Replicas
+      feCpu:
+        type: string
+        default: "2"
+        description: "CPU request and limit for each FE pod"
+        title: FE CPU
+      feMemory:
+        type: string
+        default: "4Gi"
+        description: "Memory request and limit for each FE pod"
+        title: FE Memory
+      feMetaStorageSize:
+        type: string
+        default: "10Gi"
+        description: "Persistent volume size for FE metadata"
+        title: FE Metadata Storage
+      feLogStorageSize:
+        type: string
+        default: "5Gi"
+        description: "Persistent volume size for FE logs"
+        title: FE Log Storage
+      beCpu:
+        type: string
+        default: "2"
+        description: "CPU request and limit for each BE pod"
+        title: BE CPU
+      beMemory:
+        type: string
+        default: "4Gi"
+        description: "Memory request and limit for each BE pod"
+        title: BE Memory
+      beStorageSize:
+        type: string
+        default: "20Gi"
+        description: "Persistent volume size for BE data storage"
+        title: BE Data Storage
+      beLogStorageSize:
+        type: string
+        default: "1Gi"
+        description: "Persistent volume size for BE logs"
+        title: BE Log Storage
+  healthChecks:
+  - resource:
+      apiVersion: helm.toolkit.fluxcd.io/v2
+      kind: HelmRelease
+      name: "{{ .Metadata.Name }}"
+    condition:
+      type: Ready
+      status: "True"

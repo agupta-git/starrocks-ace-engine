@@ -1,0 +1,46 @@
+apiVersion: ecosystem.awc.cloudera.com/v1alpha9
+kind: Blueprint
+metadata:
+  name: starrocks-ace-blueprint
+spec:
+  owner: "Cloudera"
+  displayName: "StarRocks"
+  description: "Deploys a minimal StarRocks cluster (1 FE + 1 BE) via the kube-starrocks Helm chart"
+
+  versionMatrix:
+    - displayVersion: "1.11.4"
+      instances:
+        - name: "starrocks-ace-cluster"
+          version: "1.11.4"
+
+  instances:
+    - name: "starrocks-ace-cluster"
+      engine: "starrocks-ace-engine"
+
+  cluster:
+    kubernetesVersion: "v1.34.3"
+
+    nodeGroups:
+      - id: "starrocks-nodes"
+        category: "worker"
+        displayName: "StarRocks Cluster Nodes"
+        description: "Nodes for running StarRocks FE and BE workloads"
+        nodeCount:
+          default: 2
+          minimum: 1
+          hint: "A single node is sufficient for the minimal 1 FE + 1 BE sample; use 2+ for production-style separation"
+        resources:
+          minimum:
+            cpu: "4"
+            memory: "8Gi"
+            hasGPU: false
+          recommended:
+            cpu: "8"
+            memory: "16Gi"
+            hasGPU: false
+          hint: "Use c5.2xlarge or m5.2xlarge workers for default engine config (2 CPU / 4Gi per FE and BE pod); c5.xlarge is too small"
+        storage:
+          disk:
+            default: "100Gi"
+            minimum: "50Gi"
+            hint: "Root disk for OS, images, and StarRocks persistent volumes (FE meta, BE data)"

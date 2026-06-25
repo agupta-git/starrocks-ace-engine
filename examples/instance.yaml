@@ -1,0 +1,11 @@
+apiVersion: ecosystem.awc.cloudera.com/v1alpha9
+kind: EngineInstance
+metadata:
+  name: starrocks-ace-instance
+  namespace: default
+spec:
+  engine: starrocks-ace-engine
+  version: "1.11.4"
+  config:
+    feReplicas: 1
+    beReplicas: 1
