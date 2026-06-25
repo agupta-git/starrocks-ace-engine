@@ -17,17 +17,17 @@ ACE engine that deploys StarRocks via the upstream **[kube-starrocks](https://st
 ## Workflow
 
 ```
-Prepare → Publish → Register in AWC Console → Deploy → Verify
+Prepare → Publish → Add registry to Console → Deploy → Verify
 ```
 
 
-| Phase    | What happens                                                           |
-| -------- | ---------------------------------------------------------------------- |
-| Prepare  | Mirror chart, update catalogs, configure registry auth                 |
-| Publish  | Push engine + blueprint OCI artifacts to your private registry         |
-| Register | Tell AWC Console which registry namespace to scan                      |
-| Deploy   | Launch blueprint from AWC Console UI                                   |
-| Runtime  | ace-operator → Flux → kube-starrocks → StarRocks operator → FE/BE pods |
+| Phase           | What happens                                                           |
+| --------------- | ---------------------------------------------------------------------- |
+| Prepare         | Mirror chart, update catalogs, configure registry auth                 |
+| Publish         | Push engine + blueprint OCI artifacts to your private registry         |
+| Console catalog | Add `${REGISTRY}/${NAMESPACE}` to AWC Console catalog sources          |
+| Deploy          | Launch blueprint from AWC Console UI                                   |
+| Runtime         | ace-operator → Flux → kube-starrocks → StarRocks operator → FE/BE pods |
 
 
 ---
@@ -64,7 +64,7 @@ cd awc-marketplace-spec && make cli
 export AWC_MARKETPLACE="$(pwd)/awc-marketplace"
 ```
 
-### 2. Authenticate (publisher)
+### 2. Authenticate
 
 ```bash
 docker login "${REGISTRY}"
@@ -95,12 +95,12 @@ spec:
 
 `awc-marketplace publish --push` mirrors public Docker Hub images from `imagecatalog.yaml` into your registry.
 
-### 4. Configure workload cluster registry access
+### 4. **Add registry pull credentials to control plane secret**
 
-Flux pulls from `${REGISTRY}` at deploy time via a cluster secret (typically `awc-console-registry-creds` in `auth-config-operator-system`). A cluster admin must merge credentials **before** deploy:
+Before deploy, merge `${REGISTRY}` credentials into the source secret `awc-console-registry-creds` in `auth-config-operator-system` on the control plane. A reflector propagates this secret to workload instance namespaces so Flux can pull charts and images at deploy time.
 
 ```bash
-KUBECONFIG="<workload-cluster-kubeconfig>"
+KUBECONFIG="<control-plane-kubeconfig>"
 SOURCE_NS="auth-config-operator-system"
 SECRET_NAME="awc-console-registry-creds"
 
@@ -133,12 +133,12 @@ Validates, then pushes `starrocks-ace-engine:1.11.4` and `starrocks-ace-blueprin
 
 ---
 
-## Register Marketplace in AWC Console
+## Add OCI Registry to AWC Console
 
-One-time per `${REGISTRY}/${NAMESPACE}`.
+After publishing, AWC Console must scan your OCI registry namespace to discover engine and blueprint artifacts. One-time per `${REGISTRY}/${NAMESPACE}`.
 
 ```bash
-KUBECONFIG="<workload-cluster-kubeconfig>"
+KUBECONFIG="<control-plane-kubeconfig>"
 kubectl config current-context
 ```
 
@@ -216,12 +216,12 @@ Console UI overrides map to `[engine.yaml](engine.yaml)` `configSchema`:
 ## Troubleshooting
 
 
-| Symptom                              | Fix                                                                                                 |
-| ------------------------------------ | --------------------------------------------------------------------------------------------------- |
-| Blueprint not in Console catalog     | Complete [Register Marketplace](#register-marketplace-in-awc-console); verify `awc-console` rollout |
-| `HelmRelease` `AuthenticationFailed` | Complete [workload cluster registry access](#4-configure-workload-cluster-registry-access)          |
-| `HelmRelease` not Ready              | Check chart mirror, `chartcatalog.yaml` version, node sizing; `kubectl describe helmrelease`        |
-| Stale chart pull after cred fix      | Delete stale `HelmChart`, annotate `HelmRelease` with `reconcile.fluxcd.io/requestedAt`             |
+| Symptom                              | Fix                                                                                                          |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------ |
+| Blueprint not in Console catalog     | Complete [Add OCI Registry to AWC Console](#add-oci-registry-to-awc-console); verify `awc-console` rollout   |
+| `HelmRelease` `AuthenticationFailed` | Complete [Add registry pull credentials on control plane](#4-add-registry-pull-credentials-on-control-plane) |
+| `HelmRelease` not Ready              | Check chart mirror, `chartcatalog.yaml` version, node sizing; `kubectl describe helmrelease`                 |
+| Stale chart pull after cred fix      | Delete stale `HelmChart`, annotate `HelmRelease` with `reconcile.fluxcd.io/requestedAt`                      |
 
 
 ---
