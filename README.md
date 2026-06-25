@@ -100,7 +100,7 @@ spec:
 Before deploy, merge `${REGISTRY}` credentials into the source secret `awc-console-registry-creds` in `auth-config-operator-system` on the control plane. A reflector propagates this secret to workload instance namespaces so Flux can pull charts and images at deploy time.
 
 ```bash
-KUBECONFIG="<control-plane-kubeconfig>"
+export KUBECONFIG="<control-plane-kubeconfig>"
 SOURCE_NS="auth-config-operator-system"
 SECRET_NAME="awc-console-registry-creds"
 
@@ -138,7 +138,7 @@ Validates, then pushes `starrocks-ace-engine:1.11.4` and `starrocks-ace-blueprin
 After publishing, AWC Console must scan your OCI registry namespace to discover engine and blueprint artifacts. One-time per `${REGISTRY}/${NAMESPACE}`.
 
 ```bash
-KUBECONFIG="<control-plane-kubeconfig>"
+export KUBECONFIG="<control-plane-kubeconfig>"
 kubectl config current-context
 ```
 
@@ -190,11 +190,14 @@ Optional instance config overrides: see [Configuration](#configuration). Wait fo
 | MySQL (in-cluster) | `<instance>-fe-service.<namespace>.svc:9030` |
 
 
-**SQL check** (credentials: `root` / empty password):
+**SQL check** (credentials: `root` / empty password). Use the **EngineInstance name**, not the AWC cluster name:
 
 ```bash
-./starrocks-ace-engine/examples/validate-queries.sh "<instance>" "<namespace>"
+export KUBECONFIG="<workload-cluster-kubeconfig>"
+./starrocks-ace-engine/examples/validate-queries.sh "<engine-instance-name>"
 ```
+
+The default deploy uses 1 BE; user-created tables need `replication_num=1` (the validation script sets this automatically).
 
 ---
 

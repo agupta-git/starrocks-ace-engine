@@ -8,7 +8,7 @@ Usage: $(basename "$0") <instance-name> [namespace]
 Validate a StarRocks ACE instance by running SQL against the FE MySQL endpoint.
 
 Arguments:
-  instance-name   EngineInstance metadata.name (also the StarRocks cluster name)
+  instance-name   EngineInstance metadata.name (not the AWC cluster name)
   namespace       Kubernetes namespace (default: same as instance name)
 
 Environment:
@@ -18,8 +18,8 @@ The StarRocks web UI "Finished Queries" panel may remain empty even when SQL
 succeeds. This script validates query execution via the MySQL protocol instead.
 
 Examples:
-  $(basename "$0") my-starrocks
-  $(basename "$0") my-starrocks my-namespace
+  $(basename "$0") starrocks-instance-0625v2
+  $(basename "$0") starrocks-instance-0625v2 starrocks-instance-0625v2
 EOF
     exit 1
 }
@@ -64,7 +64,7 @@ run_sql "SHOW BACKENDS;"
 
 echo "==> Create test database and table"
 run_sql "CREATE DATABASE IF NOT EXISTS ace_test;"
-run_sql "CREATE TABLE IF NOT EXISTS ace_test.hello (id INT, message VARCHAR(100));"
+run_sql "CREATE TABLE IF NOT EXISTS ace_test.hello (id INT, message VARCHAR(100)) PROPERTIES (\"replication_num\" = \"1\");"
 run_sql "INSERT INTO ace_test.hello VALUES (1, 'hello from ace'), (2, 'validation ok');"
 
 echo "==> SELECT validation query"
