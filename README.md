@@ -45,7 +45,7 @@ Prepare → Publish → Register in AWC Console → Deploy → Verify
 | Root disk     | 100 GiB                                 |
 
 
-`[blueprint.yaml](blueprint.yaml)` encodes these for AWC Console cluster provisioning.
+`blueprint.yaml` encodes these for AWC Console cluster provisioning.
 
 ---
 
@@ -82,7 +82,7 @@ helm push kube-starrocks-1.11.4.tgz "oci://${REGISTRY}/${NAMESPACE}"
 helm show chart "oci://${REGISTRY}/${NAMESPACE}/kube-starrocks" --version 1.11.4
 ```
 
-Update `[chartcatalog.yaml](chartcatalog.yaml)`:
+Update `chartcatalog.yaml`:
 
 ```yaml
 spec:
@@ -93,7 +93,7 @@ spec:
       version: "1.11.4"
 ```
 
-`awc-marketplace publish --push` mirrors public Docker Hub images from `[imagecatalog.yaml](imagecatalog.yaml)` into your registry.
+`awc-marketplace publish --push` mirrors public Docker Hub images from `imagecatalog.yaml` into your registry.
 
 ### 4. Configure workload cluster registry access
 
@@ -162,7 +162,7 @@ Confirm `starrocks-ace-blueprint` appear in the Console marketplace catalog.
 
 ## Deploy from AWC Console
 
-Select `**starrocks-ace-blueprint**` (v**1.11.4**) in the marketplace and start a new deployment.
+Select `starrocks-ace-blueprint` (v**1.11.4**) in the marketplace and start a new deployment.
 
 
 | Setting                 | Value                                            |
@@ -195,8 +195,6 @@ Optional instance config overrides: see [Configuration](#configuration). Wait fo
 ```bash
 ./starrocks-ace-engine/examples/validate-queries.sh "<instance>" "<namespace>"
 ```
-
-Or manually: `SHOW FRONTENDS; SHOW BACKENDS;` — expect one FE **LEADER** and BE nodes **Alive**. First boot may take several minutes; transient "No leader yet" logs are normal.
 
 ---
 
