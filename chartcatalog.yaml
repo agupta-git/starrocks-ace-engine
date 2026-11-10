@@ -1,4 +1,4 @@
-apiVersion: ecosystem.awc.cloudera.com/v1alpha9
+apiVersion: ecosystem.awc.cloudera.com/v1alpha10
 kind: ChartCatalog
 metadata:
   name: starrocks-ace-charts

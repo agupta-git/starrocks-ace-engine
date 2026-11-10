@@ -30,8 +30,9 @@ fi
 REGISTRY="$1"
 NAMESPACE="$2"
 
-VERSION="$(yq '.spec.versionCatalog[0].displayName' "$SCRIPT_DIR/engine.yaml")"
-BLUEPRINT_VERSION="$(yq '.spec.versionMatrix[0].displayVersion' "$SCRIPT_DIR/blueprint.yaml")"
+# OCI tag for both artifacts. v1alpha10 has no versionCatalog or versionMatrix;
+# the chart catalog version is the release tag.
+VERSION="$(yq '.spec.charts[] | select(.id == "kubeStarrocks") | .version' "$SCRIPT_DIR/chartcatalog.yaml")"
 
 echo "==> Validating starrocks-ace-engine"
 "$AWC_MARKETPLACE" validate "$SCRIPT_DIR"
@@ -39,6 +40,7 @@ echo "==> Validating starrocks-ace-engine"
 
 echo "==> Publishing starrocks-ace-engine version $VERSION"
 "$AWC_MARKETPLACE" publish \
+    --schema-version 2 \
     --namespace "$NAMESPACE" \
     "$SCRIPT_DIR" \
     --version "$VERSION" \
@@ -46,11 +48,12 @@ echo "==> Publishing starrocks-ace-engine version $VERSION"
     --destination-registry "$REGISTRY" \
     --force
 
-echo "==> Publishing starrocks-ace-blueprint blueprint version $BLUEPRINT_VERSION"
+echo "==> Publishing starrocks-ace-blueprint blueprint version $VERSION"
 "$AWC_MARKETPLACE" publish \
+    --schema-version 2 \
     --namespace "$NAMESPACE" \
     --blueprint "$SCRIPT_DIR/blueprint.yaml" \
-    --version "$BLUEPRINT_VERSION" \
+    --version "$VERSION" \
     --push \
     --destination-registry "$REGISTRY" \
     --instance "starrocks-ace-cluster=starrocks-ace-engine:${VERSION}" \

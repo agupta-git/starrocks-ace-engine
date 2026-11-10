@@ -1,5 +1,5 @@
 ---
-apiVersion: ecosystem.awc.cloudera.com/v1alpha9
+apiVersion: ecosystem.awc.cloudera.com/v1alpha10
 kind: Capability
 metadata:
   name: starrocks-cluster

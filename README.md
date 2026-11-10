@@ -236,4 +236,4 @@ Console UI overrides map to `[engine.yaml](engine.yaml)` `configSchema`:
 3. `./starrocks-ace-engine/publish.sh "${REGISTRY}" "${NAMESPACE}"`
 4. Deploy updated version from AWC Console.
 
-API version: `ecosystem.awc.cloudera.com/v1alpha9`.
+API version: `ecosystem.awc.cloudera.com/v1alpha10`.
