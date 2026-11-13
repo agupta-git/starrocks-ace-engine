@@ -28,8 +28,18 @@ spec:
     values: |
       operator:
         nameOverride: "{{ .Metadata.Name }}"
+        {{- if .ServiceAccountName }}
+        global:
+          rbac:
+            create: false
+            serviceAccount:
+              name: "{{ .ServiceAccountName }}"
+        {{- end }}
         starrocksOperator:
           enabled: true
+          {{- if .ServiceAccountName }}
+          watchNamespace: "{{ .Metadata.Namespace }}"
+          {{- end }}
           image:
             repository: "{{ .Image.starrocksOperator.registry }}/{{ .Image.starrocksOperator.repository }}"
             tag: "{{ .Image.starrocksOperator.tag }}"

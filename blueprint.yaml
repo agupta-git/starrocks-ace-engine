@@ -3,7 +3,7 @@ kind: Blueprint
 metadata:
   name: starrocks-ace-blueprint
 spec:
-  owner: "Cloudera"
+  owner: "angupta"
   description: "Deploys a minimal StarRocks cluster (1 FE + 1 BE) via the kube-starrocks Helm chart"
 
   instances:

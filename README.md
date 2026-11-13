@@ -201,6 +201,21 @@ The default deploy uses 1 BE; user-created tables need `replication_num=1` (the 
 
 ---
 
+## Strict ACE RBAC
+
+`role.yaml` is split into a **`ClusterRole`** (Flux chart runtime, StarRocks CRD install) and a **`Role`** (engine template, Helm workloads, namespace-scoped StarRocks operator). When AWC runs with strict ACE RBAC (`features.strictAceRBAC`), `engine.yaml` sets `starrocksOperator.watchNamespace` to the instance namespace, disables chart-owned operator RBAC, and runs the operator as the ACE-managed engine `ServiceAccount`.
+
+Validate before publish (same gate as ACE Hub at deploy time):
+
+```bash
+# from a checkout of awc-core/services/ace-hub
+go run ./cmd/validate-engine-rbac /path/to/starrocks-ace-engine/role.yaml
+```
+
+Live cluster checklist with captured results: [docs/strict-ace-rbac-verification.md](docs/strict-ace-rbac-verification.md).
+
+---
+
 ## Configuration
 
 Console UI overrides map to `[engine.yaml](engine.yaml)` `configSchema`:
