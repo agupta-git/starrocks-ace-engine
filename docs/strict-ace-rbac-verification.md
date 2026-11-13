@@ -223,3 +223,28 @@ kubectl get deploy -n "$NS" -l app.kubernetes.io/component=starrocksoperator -o 
 - `role.yaml` — `ClusterRole` + `Role` split for `ValidateEngineRBAC`
 - `engine.yaml` — `rbac.create: false`, engine SA, `watchNamespace` when `.ServiceAccountName` is set
 - `examples/validate-queries.sh` — post-deploy FE connectivity check
+
+---
+
+## Mental model: operator runtime vs Helm install vs RBAC
+
+StarRocks on AWC is **operator-based at runtime** and **Helm-based for install**. The checks in this doc prove that the strict-RBAC path still delivers a working operator.
+
+| Layer | What it is |
+|-------|------------|
+| **Runtime** | The StarRocks Kubernetes operator reconciles `StarRocksCluster` (`starrocks.com`) and owns FE/BE workloads. |
+| **Install on AWC** | ace-operator creates a Flux `HelmRelease` for the **kube-starrocks** umbrella chart, which installs the **operator Deployment** and the **StarRocksCluster** CR in one release. |
+| **Permissions (strict)** | ACE Hub applies engine `role.yaml` per EngineInstance and binds it to the **EngineInstance ServiceAccount (SA)**. Flux installs the chart **as that SA** (`HelmRelease.spec.serviceAccountName`). |
+
+**“Disable chart-owned operator RBAC”** does not mean StarRocks stops using an operator. It means `engine.yaml` sets `operator.global.rbac.create: false` so kube-starrocks does **not** render its bundled ClusterRole/Role/Bindings for the operator. Instead, the operator pod runs as the **EngineInstance SA**, and permissions come only from validated `role.yaml` (`<ei-ns>-engine` Role + ClusterRole). With `.ServiceAccountName` set, the chart also sets `starrocksOperator.watchNamespace` to the instance namespace so the operator does not need a cluster-wide watch.
+
+```
+EngineInstance (ACE Hub)
+  → ace-operator: HelmRelease + spec.serviceAccountName = engine SA
+    → Flux helm-controller (impersonates engine SA)
+      → kube-starrocks chart:
+          · StarRocks operator Deployment     (operator-based runtime)
+          · StarRocksCluster CR               (operator reconciles)
+          · chart operator RBAC templates     OFF (rbac.create: false)
+      → permissions: role.yaml via ACE Hub (<ei-ns>-engine bindings)
+```
