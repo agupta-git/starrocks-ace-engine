@@ -1,1 +1,2 @@
-.workload-kubeconfig*.yaml
+.DS_Store
+*.tgz
