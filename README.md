@@ -2,8 +2,6 @@
 
 ACE engine that deploys StarRocks via the upstream [kube-starrocks](https://starrocks.github.io/starrocks-kubernetes-operator/helm-charts/charts/kube-starrocks/) umbrella Helm chart. Each instance installs the operator and a minimal shared-nothing cluster (1 FE + 1 BE) through Flux in a single Helm release.
 
-**Constraint:** one StarRocks instance per cluster.
-
 | | Name |
 | --- | --- |
 | Engine | `starrocks-ace-engine` |
@@ -92,11 +90,6 @@ The default deploy uses 1 BE. User-created tables need `replication_num=1`; the 
 
 [role.yaml](role.yaml) is a `ClusterRole` (Flux chart runtime, StarRocks CRD install) and a `Role` (engine template, Helm workloads, namespace-scoped StarRocks operator). With strict ACE RBAC (`features.strictAceRBAC`), [engine.yaml](engine.yaml) sets `starrocksOperator.watchNamespace` to the instance namespace, disables chart-owned operator RBAC, and runs the operator as the ACE-managed engine `ServiceAccount`.
 
-```bash
-# from a checkout of awc-core/services/ace-hub
-go run ./cmd/validate-engine-rbac /path/to/starrocks-ace-engine/role.yaml
-```
-
 Live cluster checklist: [docs/strict-ace-rbac-verification.md](docs/strict-ace-rbac-verification.md).
 
 ## Configuration
@@ -109,15 +102,6 @@ Console overrides map to [engine.yaml](engine.yaml) `configSchema`:
 | `feCpu` / `feMemory` | 2 / 4Gi | `beCpu` / `beMemory` | 2 / 4Gi |
 | `feMetaStorageSize` | 10Gi | `beStorageSize` | 20Gi |
 | `feLogStorageSize` | 5Gi | `beLogStorageSize` | 1Gi |
-
-## Troubleshooting
-
-| Symptom | Fix |
-| --- | --- |
-| Blueprint not in the Console catalog | Register the registry with [awc-oci-register](https://github.com/agupta-git/awc-oci-register) |
-| `HelmRelease` `AuthenticationFailed` | Same registration; it merges pull credentials for `${REGISTRY}` |
-| `HelmRelease` not Ready | Check the chart mirror, `chartcatalog.yaml` version, and node sizing; `kubectl describe helmrelease` |
-| Stale chart pull after a credential fix | Delete the stale `HelmChart` and annotate the `HelmRelease` with `reconcile.fluxcd.io/requestedAt` |
 
 ## Upgrade
 
