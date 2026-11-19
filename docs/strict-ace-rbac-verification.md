@@ -1,12 +1,12 @@
 # Strict ACE RBAC verification — starrocks-ace-engine
 
-Evidence that **starrocks-ace-engine 1.11.4** deploys correctly under strict ACE RBAC on a live AWC stack.
+The 2026-11-13 run below shows **starrocks-ace-engine 1.11.4** deploying on a live AWC stack. That `role.yaml` still held Flux `HelmRepository` and `HelmRelease` rules on the `ClusterRole`. Those rules fail the current ACE Hub gate (AWC-6150). The file now has one `ClusterRole` rule (`customresourcedefinitions` only). The cluster notes are evidence against the old carve-out, not a pass of the current file. Re-run the pre-deploy check before the next publish.
 
-**Verified:** 2026-11-13 (UTC)  
+**Recorded:** 2026-11-13 (UTC)  
 **Instances:** `starrocks-3` and `starrocks-4` (both `starrocks-ace-engine` 1.11.4)  
 **Evidence below** uses `starrocks-3` on `starrocks-cluster-3`; see [multi-instance comparison](#multi-instance-comparison-same-awc-environment) for `starrocks-4`.
 
-Platform docs: [strict ACE RBAC](https://github.infra.cloudera.com/AWC/awc-core/blob/main/services/ace-hub/docs/features/strict-ace-rbac.md), [ace-operator strict mode](https://github.infra.cloudera.com/AWC/ace-operator/blob/main/docs/operator_configuration.md#--strict-ace-rbac).
+Platform docs: [strict ACE RBAC](https://github.infra.cloudera.com/AWC/awc-core/blob/main/services/ace-hub/docs/features/strict-ace-rbac.md), [ace-operator engine RBAC](https://github.infra.cloudera.com/AWC/ace-operator/blob/main/docs/operator_configuration.md#engine-rbac). Scoped engine RBAC is always on. `--strict-ace-rbac` is a deprecated no-op.
 
 ---
 
@@ -14,8 +14,8 @@ Platform docs: [strict ACE RBAC](https://github.infra.cloudera.com/AWC/awc-core/
 
 | # | Check | Result |
 |---|--------|--------|
-| 1 | `role.yaml` passes ACE Hub `ValidateEngineRBAC` | **PASS** |
-| 2 | ace-hub and ace-operator run with `--strict-ace-rbac=true` | **PASS** |
+| 1 | `role.yaml` passes ACE Hub `ValidateEngineRBAC` | **PASS** on 2026-11-13, against the old Flux carve-out. Re-run on the current file. |
+| 2 | Scoped engine RBAC is the only mode. `--strict-ace-rbac=true` is not the control | The flag was set on that run. It is now a deprecated no-op. |
 | 3 | No `ace-operator-manager-cluster-admin` ClusterRoleBinding | **PASS** (NotFound) |
 | 4 | Per–EngineInstance RBAC `<ei-ns>-engine` (+ Kyverno mirror + impersonate) | **PASS** |
 | 5 | `EngineInstance` Running; `spec.serviceAccountName` set | **PASS** |
@@ -27,18 +27,22 @@ Platform docs: [strict ACE RBAC](https://github.infra.cloudera.com/AWC/awc-core/
 
 ## 1. Pre-deploy: validate `role.yaml`
 
-From `awc-core/services/ace-hub`:
+From `awc-core/services/ace-hub`, before publish:
 
 ```bash
 go run ./cmd/validate-engine-rbac /path/to/starrocks-ace-engine/role.yaml
 ```
 
-**Observed output:**
+Expect `PASS` with `1 ClusterRole, 1 Role`. The `ClusterRole` is the CRD rule only.
+
+**Observed output (2026-11-13 file, Flux rules still on the ClusterRole):**
 
 ```
 PASS: .../starrocks-ace-engine/role.yaml (1 ClusterRole, 1 Role)
 exit=0
 ```
+
+That PASS does not cover the current file. The count is the same because one `ClusterRole` remains. Its rules are not.
 
 ---
 
@@ -51,18 +55,14 @@ phase=Running
 EngineInstanceReady=True
 ```
 
-Strict-mode scoped cluster RBAC names recorded in status (excerpt):
+Scoped cluster RBAC names recorded in status (excerpt):
 
 ```
 c005-starrocks-3-1de878-engine
 c005-starrocks-3-1de878-engine-kyverno
 ```
 
-**ace-hub** manager args include:
-
-```
---strict-ace-rbac=true
-```
+**ace-hub** manager args on that run included `--strict-ace-rbac=true`. The flag is a deprecated no-op. Scoped engine RBAC is always on.
 
 ---
 
@@ -83,11 +83,9 @@ NS=c005-starrocks-3-1de878
 EI=starrocks-3-starrocks-ace-cluster
 ```
 
-### 3.1 ace-operator strict mode
+### 3.1 ace-operator
 
-```
---strict-ace-rbac=true
-```
+The manager args on that run included `--strict-ace-rbac=true`. The flag is a deprecated no-op. The check that still matters is the absent cluster-admin binding:
 
 ```
 $ kubectl get clusterrolebinding ace-operator-manager-cluster-admin
@@ -107,7 +105,7 @@ clusterrolebinding/c005-starrocks-3-1de878-engine
 clusterrolebinding/c005-starrocks-3-1de878-engine-kyverno
 ```
 
-Namespaced `Role` includes expected API groups (13 rules), including `starrocks.com` and `security.awc.cloudera.com`. Cluster `ClusterRole` holds cluster-scoped rules only (3 rules; no `starrocks.com` in ClusterRole — as designed).
+Namespaced `Role` includes expected API groups (13 rules), including `starrocks.com` and `security.awc.cloudera.com`. The deployed `ClusterRole` on that run held 3 rules (Flux `HelmRepository`, Flux `HelmRelease`, and `customresourcedefinitions`). The current `role.yaml` `ClusterRole` has 1 rule (`customresourcedefinitions` only). `starrocks.com` stays on the `Role`.
 
 ### 3.3 EngineInstance SA
 
@@ -220,7 +218,7 @@ kubectl get deploy -n "$NS" -l app.kubernetes.io/component=starrocksoperator -o 
 
 ## References in this repo
 
-- `role.yaml` — `ClusterRole` + `Role` split for `ValidateEngineRBAC`
+- `role.yaml` — `ClusterRole` is CRD install only; `Role` holds the template, Helm workloads, and the namespace-scoped operator
 - `engine.yaml` — `rbac.create: false`, engine SA, `watchNamespace` when `.ServiceAccountName` is set
 - `examples/validate-queries.sh` — post-deploy FE connectivity check
 
@@ -228,13 +226,13 @@ kubectl get deploy -n "$NS" -l app.kubernetes.io/component=starrocksoperator -o 
 
 ## Mental model: operator runtime vs Helm install vs RBAC
 
-StarRocks on AWC is **operator-based at runtime** and **Helm-based for install**. The checks in this doc prove that the strict-RBAC path still delivers a working operator.
+StarRocks on AWC is **operator-based at runtime** and **Helm-based for install**. The 2026-11-13 checks show that this install path delivers a working operator. They do not re-validate the current `role.yaml`.
 
 | Layer | What it is |
 |-------|------------|
 | **Runtime** | The StarRocks Kubernetes operator reconciles `StarRocksCluster` (`starrocks.com`) and owns FE/BE workloads. |
 | **Install on AWC** | ace-operator creates a Flux `HelmRelease` for the **kube-starrocks** umbrella chart, which installs the **operator Deployment** and the **StarRocksCluster** CR in one release. |
-| **Permissions (strict)** | ACE Hub applies engine `role.yaml` per EngineInstance and binds it to the **EngineInstance ServiceAccount (SA)**. Flux installs the chart **as that SA** (`HelmRelease.spec.serviceAccountName`). |
+| **Permissions** | ACE Hub applies engine `role.yaml` per EngineInstance and binds it to the **EngineInstance ServiceAccount (SA)**. ace-operator creates the Flux objects as itself. Flux installs the chart **as that SA** (`HelmRelease.spec.serviceAccountName`). The SA holds no `HelmRepository` or `HelmRelease` rules. |
 
 **“Disable chart-owned operator RBAC”** does not mean StarRocks stops using an operator. It means `engine.yaml` sets `operator.global.rbac.create: false` so kube-starrocks does **not** render its bundled ClusterRole/Role/Bindings for the operator. Instead, the operator pod runs as the **EngineInstance SA**, and permissions come only from validated `role.yaml` (`<ei-ns>-engine` Role + ClusterRole). With `.ServiceAccountName` set, the chart also sets `starrocksOperator.watchNamespace` to the instance namespace so the operator does not need a cluster-wide watch.
 

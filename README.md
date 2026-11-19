@@ -88,7 +88,7 @@ The default deploy uses 1 BE. User-created tables need `replication_num=1`; the 
 
 ## Strict ACE RBAC
 
-[role.yaml](role.yaml) is a `ClusterRole` (Flux chart runtime, StarRocks CRD install) and a `Role` (engine template, Helm workloads, namespace-scoped StarRocks operator). With strict ACE RBAC (`features.strictAceRBAC`), [engine.yaml](engine.yaml) sets `starrocksOperator.watchNamespace` to the instance namespace, disables chart-owned operator RBAC, and runs the operator as the ACE-managed engine `ServiceAccount`.
+[role.yaml](role.yaml) is a `ClusterRole` (StarRocks CRD install only) and a `Role` (engine template, Helm workloads, namespace-scoped StarRocks operator). Scoped ACE RBAC is always on. [engine.yaml](engine.yaml) sets `starrocksOperator.watchNamespace` to the instance namespace when `.ServiceAccountName` is set, disables chart-owned operator RBAC, and runs the operator as the ACE-managed engine `ServiceAccount`. ace-operator creates the Flux `HelmRepository` and `HelmRelease` as itself.
 
 Live cluster checklist: [docs/strict-ace-rbac-verification.md](docs/strict-ace-rbac-verification.md).
 
